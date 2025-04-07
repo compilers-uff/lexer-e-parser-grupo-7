@@ -52,10 +52,13 @@ import java_cup.runtime.*;
 
 /* Macros (regexes used in rules below) */
 
-WhiteSpace = [ \t]
+WhiteSpace = [ \r\n\f\t]
 LineBreak  = \r|\n|\r\n
 
 IntegerLiteral = 0 | [1-9][0-9]*
+StringLiteral = \"(\\.|[^\"\n])*\"
+/* StringLiteral = \"[^\"\n]*\" */
+Id = [a-zA-Z_][a-zA-Z0-9_]*
 
 %%
 
@@ -66,11 +69,24 @@ IntegerLiteral = 0 | [1-9][0-9]*
   {LineBreak}                 { return symbol(ChocoPyTokens.NEWLINE); }
 
   /* Literals. */
-  {IntegerLiteral}            { return symbol(ChocoPyTokens.NUMBER,
-                                                 Integer.parseInt(yytext())); }
+  {IntegerLiteral}            { return symbol(ChocoPyTokens.NUMBER, Integer.parseInt(yytext())); }
+  {StringLiteral}             {
+    return symbol(ChocoPyTokens.STRING, yytext().replaceAll("^\"|\"$", "\"")); 
+  }
+  "True"                      { return symbol(ChocoPyTokens.BOOLEAN, true); }
+  "False"                     { return symbol(ChocoPyTokens.BOOLEAN, false); }
+  "None"                      { return symbol(ChocoPyTokens.NONE); }
+
+  {Id} { return symbol(ChocoPyTokens.ID, yytext()); }
+
+  /* Punctuation */
+  "\["                         { return symbol(ChocoPyTokens.BRA); }
+  "\]"                         { return symbol(ChocoPyTokens.KET); }
+  ","                         { return symbol(ChocoPyTokens.COMMA); }
 
   /* Operators. */
   "+"                         { return symbol(ChocoPyTokens.PLUS, yytext()); }
+  "-"                         { return symbol(ChocoPyTokens.MINUS, yytext()); }
 
   /* Whitespace. */
   {WhiteSpace}                { /* ignore */ }

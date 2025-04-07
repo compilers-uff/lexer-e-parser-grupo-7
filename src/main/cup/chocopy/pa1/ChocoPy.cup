@@ -143,8 +143,13 @@ action code {:
  * in actions ( {: ... :} ).
  */
 terminal NEWLINE;
-terminal String PLUS; 
+terminal String PLUS, MINUS, UMINUS; 
+terminal String STRING; 
+terminal String ID; 
+terminal Boolean BOOLEAN;
 terminal Integer NUMBER; 
+terminal NONE; 
+terminal BRA, KET, COMMA;
 /* Returned by the lexer for erroneous tokens.  Since it does not appear in
  * the grammar, it indicates a syntax error. */
 terminal UNRECOGNIZED;   
@@ -157,12 +162,14 @@ terminal UNRECOGNIZED;
 non terminal Program           program;
 non terminal List<Declaration> program_head;
 non terminal List<Stmt>        stmt_list, opt_stmt_list;
+non terminal List<Expr>        list_expr;
 non terminal Stmt              stmt, expr_stmt;
 non terminal Expr              expr, binary_expr;
 
 /* Precedences (lowest to highest) for resolving what would otherwise be
  * ambiguities in the form of shift/reduce conflicts.. */
-precedence left PLUS;
+precedence left PLUS, MINUS;
+precedence left UMINUS;
 
 /* The start symbol. */
 start with program;
@@ -196,14 +203,25 @@ stmt_list ::= stmt:s                 {: RESULT = single(s); :}
             ;
 
 stmt ::= expr_stmt:s NEWLINE {: RESULT = s; :}
+       | NEWLINE 
               ;
 
 expr_stmt ::= expr:e    {: RESULT = new ExprStmt(exleft, exright, e); :}
             ;
 
 expr ::= binary_expr:e  {: RESULT = e; :}
+       | MINUS:op expr:e     {: RESULT = new UnaryExpr(opxleft, exright, op, e); :}
+           %prec UMINUS
        | NUMBER:n       {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
+       | BOOLEAN:b       {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
+       | STRING:s      {: RESULT = new StringLiteral(sxleft, sxright, s); :}
+       | NONE:n       {: RESULT = new NoneLiteral(nxleft, nxright); :}
+       | BRA:b list_expr:l KET:k {: RESULT = new ListExpr(bxleft, kxright, l); :}
        ;
+
+list_expr ::= list_expr:le COMMA expr:e {: RESULT = combine(le, e); :}
+            | expr:e {: RESULT = single(e); :}
+;
 
 
 /* A binary expression, illustrating how to find the left and right
