@@ -150,6 +150,7 @@ terminal Boolean BOOLEAN;
 terminal Integer NUMBER; 
 terminal NONE; 
 terminal BRA, KET, COMMA;
+terminal INDENT, OUTDENT;
 /* Returned by the lexer for erroneous tokens.  Since it does not appear in
  * the grammar, it indicates a syntax error. */
 terminal UNRECOGNIZED;   
@@ -214,7 +215,7 @@ expr ::= binary_expr:e  {: RESULT = e; :}
            %prec UMINUS
        | NUMBER:n       {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
        | BOOLEAN:b       {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
-       | STRING:s      {: RESULT = new StringLiteral(sxleft, sxright, s); :}
+       | STRING:s      {: RESULT = new StringLiteral(sxleft, sxright, s.replaceAll("^\"|\"$", "")); :}
        | NONE:n       {: RESULT = new NoneLiteral(nxleft, nxright); :}
        | BRA:b list_expr:l KET:k {: RESULT = new ListExpr(bxleft, kxright, l); :}
        ;

@@ -34,7 +34,7 @@ Reading src/test/data/pa1/sample/literals.py
     "location" : [ 4, 1, 4, 4 ]
   }, {
     "expr" : {
-      "value" : "\"This is a string\"",
+      "value" : "This is a string",
       "kind" : "StringLiteral",
       "location" : [ 5, 1, 5, 18 ]
     },

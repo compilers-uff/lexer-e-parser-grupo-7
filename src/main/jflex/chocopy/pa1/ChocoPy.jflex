@@ -48,16 +48,50 @@ import java_cup.runtime.*;
             value);
     }
 
+    // Indentation handling
+    private java.util.Stack<Integer> indentStack = new java.util.Stack<>();
+    private boolean atStartOfLine = true;
+    private int currentIndent = 0;
+    
+    {
+        indentStack.push(0); // Initialize with 0 indentation
+    }
+    
+    private Symbol handleIndentation() throws java.io.IOException {
+        // Skip empty lines
+        if (yytext().trim().isEmpty()) {
+            atStartOfLine = true;
+            return null;
+        }
+        
+        // Count the current indentation
+        String spaces = yytext();
+        currentIndent = spaces.length();
+        int prevIndent = indentStack.peek();
+        
+        if (currentIndent > prevIndent) {
+            indentStack.push(currentIndent);
+            return symbol(ChocoPyTokens.INDENT);
+        } else if (currentIndent < prevIndent) {
+            // Generate OUTDENT tokens until matching level
+            indentStack.pop();
+            yypushback(yylength()); // Put back the line for reprocessing
+            return symbol(ChocoPyTokens.OUTDENT);
+        } else {
+            // Same indentation, no tokens needed
+            return null;
+        }
+    }
 %}
 
 /* Macros (regexes used in rules below) */
 
-WhiteSpace = [ \r\n\f\t]
+WhiteSpace = [ \t]
 LineBreak  = \r|\n|\r\n
 
 IntegerLiteral = 0 | [1-9][0-9]*
 StringLiteral = \"(\\.|[^\"\n])*\"
-/* StringLiteral = \"[^\"\n]*\" */
+Comment = "#".*
 Id = [a-zA-Z_][a-zA-Z0-9_]*
 
 %%
@@ -66,7 +100,25 @@ Id = [a-zA-Z_][a-zA-Z0-9_]*
 <YYINITIAL> {
 
   /* Delimiters. */
-  {LineBreak}                 { return symbol(ChocoPyTokens.NEWLINE); }
+  ^{WhiteSpace}+ {
+      if (atStartOfLine) {
+          Symbol s = handleIndentation();
+          if (s != null) return s;
+      }
+      // Continue processing the rest of the line
+      atStartOfLine = false;
+  }
+  
+  ^{WhiteSpace}*{Comment}{LineBreak} {
+      // Skip comment-only lines but maintain line tracking
+      atStartOfLine = true;
+  }
+  
+  {LineBreak} {
+      atStartOfLine = true;
+      return symbol(ChocoPyTokens.NEWLINE);
+  }
+
 
   /* Literals. */
   {IntegerLiteral}            { return symbol(ChocoPyTokens.NUMBER, Integer.parseInt(yytext())); }
