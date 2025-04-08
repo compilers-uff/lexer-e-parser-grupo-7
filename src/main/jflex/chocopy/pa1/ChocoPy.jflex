@@ -122,23 +122,35 @@ Id = [a-zA-Z_][a-zA-Z0-9_]*
 
   /* Literals. */
   {IntegerLiteral}            { return symbol(ChocoPyTokens.NUMBER, Integer.parseInt(yytext())); }
-  {StringLiteral}             {
-    return symbol(ChocoPyTokens.STRING, yytext().replaceAll("^\"|\"$", "\"")); 
-  }
+  {StringLiteral}             { return symbol(ChocoPyTokens.STRING, yytext().replaceAll("^\"|\"$", "")); }
   "True"                      { return symbol(ChocoPyTokens.BOOLEAN, true); }
   "False"                     { return symbol(ChocoPyTokens.BOOLEAN, false); }
   "None"                      { return symbol(ChocoPyTokens.NONE); }
 
-  {Id} { return symbol(ChocoPyTokens.ID, yytext()); }
+  /* Keywords */
+  "if"                      { return symbol(ChocoPyTokens.IF); }
+  "elif"                      { return symbol(ChocoPyTokens.ELIF); }
+  "else"                      { return symbol(ChocoPyTokens.ELSE); }
 
   /* Punctuation */
   "\["                         { return symbol(ChocoPyTokens.BRA); }
   "\]"                         { return symbol(ChocoPyTokens.KET); }
-  ","                         { return symbol(ChocoPyTokens.COMMA); }
+  "\("                         { return symbol(ChocoPyTokens.PAREN); }
+  "\)"                         { return symbol(ChocoPyTokens.THESIS); }
+  ","                          { return symbol(ChocoPyTokens.COMMA); }
 
   /* Operators. */
   "+"                         { return symbol(ChocoPyTokens.PLUS, yytext()); }
   "-"                         { return symbol(ChocoPyTokens.MINUS, yytext()); }
+  "=="                         { return symbol(ChocoPyTokens.EQ, yytext()); }
+  "!="                         { return symbol(ChocoPyTokens.NEQ, yytext()); }
+  ">"                          { return symbol(ChocoPyTokens.GT, yytext()); }
+  "<"                          { return symbol(ChocoPyTokens.LT, yytext()); }
+  ">="                         { return symbol(ChocoPyTokens.EGT, yytext()); }
+  "<="                         { return symbol(ChocoPyTokens.ELT, yytext()); }
+  "is"                      { return symbol(ChocoPyTokens.IS, yytext()); }
+
+  {Id}                        { return symbol(ChocoPyTokens.ID, yytext()); }
 
   /* Whitespace. */
   {WhiteSpace}                { /* ignore */ }

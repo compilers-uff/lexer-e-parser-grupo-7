@@ -144,12 +144,14 @@ action code {:
  */
 terminal NEWLINE;
 terminal String PLUS, MINUS, UMINUS; 
+terminal String EQ, NEQ, GT, LT, EGT, ELT, IS;
 terminal String STRING; 
 terminal String ID; 
 terminal Boolean BOOLEAN;
 terminal Integer NUMBER; 
 terminal NONE; 
-terminal BRA, KET, COMMA;
+terminal IF, ELIF, ELSE;
+terminal PAREN, THESIS, BRA, KET, COMMA;
 terminal INDENT, OUTDENT;
 /* Returned by the lexer for erroneous tokens.  Since it does not appear in
  * the grammar, it indicates a syntax error. */
@@ -163,14 +165,22 @@ terminal UNRECOGNIZED;
 non terminal Program           program;
 non terminal List<Declaration> program_head;
 non terminal List<Stmt>        stmt_list, opt_stmt_list;
-non terminal List<Expr>        list_expr;
+non terminal List<Expr>        list_expr, args;
 non terminal Stmt              stmt, expr_stmt;
 non terminal Expr              expr, binary_expr;
+non terminal Identifier        id;
 
 /* Precedences (lowest to highest) for resolving what would otherwise be
  * ambiguities in the form of shift/reduce conflicts.. */
+precedence right IF, ELSE;
+precedence nonassoc EQ, NEQ, GT, LT, EGT, ELT, IS;
 precedence left PLUS, MINUS;
 precedence left UMINUS;
+precedence nonassoc COMMA;
+precedence left BRA;
+precedence right KET;
+precedence left PAREN;
+precedence right THESIS;
 
 /* The start symbol. */
 start with program;
@@ -207,27 +217,50 @@ stmt ::= expr_stmt:s NEWLINE {: RESULT = s; :}
        | NEWLINE 
               ;
 
-expr_stmt ::= expr:e    {: RESULT = new ExprStmt(exleft, exright, e); :}
-            ;
-
-expr ::= binary_expr:e  {: RESULT = e; :}
-       | MINUS:op expr:e     {: RESULT = new UnaryExpr(opxleft, exright, op, e); :}
-           %prec UMINUS
-       | NUMBER:n       {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
-       | BOOLEAN:b       {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
-       | STRING:s      {: RESULT = new StringLiteral(sxleft, sxright, s.replaceAll("^\"|\"$", "")); :}
-       | NONE:n       {: RESULT = new NoneLiteral(nxleft, nxright); :}
-       | BRA:b list_expr:l KET:k {: RESULT = new ListExpr(bxleft, kxright, l); :}
-       ;
-
-list_expr ::= list_expr:le COMMA expr:e {: RESULT = combine(le, e); :}
-            | expr:e {: RESULT = single(e); :}
+expr_stmt ::=
+    expr:e    {: RESULT = new ExprStmt(exleft, exright, e); :}
 ;
 
+expr ::=
+    binary_expr:e  {: RESULT = e; :}
+    | id:i PAREN args:a THESIS {: RESULT = new CallExpr(ixleft, axright, i, a); :}
+    | expr:e1 IF expr:cond ELSE expr:e2 
+        {: RESULT = new IfExpr(e1xleft, e2xright, cond, e1, e2); :}
+    | MINUS:op expr:e     {: RESULT = new UnaryExpr(opxleft, exright, op, e); :}
+        %prec UMINUS
+    | NUMBER:n       {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
+    | BOOLEAN:b       {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
+    | STRING:s      {: RESULT = new StringLiteral(sxleft, sxright, s); :}
+    | NONE:n       {: RESULT = new NoneLiteral(nxleft, nxright); :}
+    | BRA:b list_expr:l KET:k {: RESULT = new ListExpr(bxleft, kxright, l); :}
+;
+
+args ::=
+    args:a COMMA expr:e {: RESULT = combine(a, e); :}
+    | expr:e {: RESULT = single(e); :}
+    | {: RESULT = empty(); :}
+;
+
+id ::=
+    ID:i {: RESULT = new Identifier(ixleft, ixright, i); :}
+;
+
+list_expr ::= 
+    list_expr:le COMMA expr:e {: RESULT = combine(le, e); :}
+    | expr:e {: RESULT = single(e); :}
+    | {: RESULT = empty(); :}
+;
 
 /* A binary expression, illustrating how to find the left and right
  * source position of a phrase. */
-binary_expr ::= expr:e1 PLUS:op expr:e2
-                        {: RESULT = new BinaryExpr(e1xleft, e2xright,
-                                                   e1, op, e2); :}
-              ;
+binary_expr ::=
+    expr:e1 PLUS:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 MINUS:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 EQ:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 NEQ:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 GT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 LT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 EGT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 ELT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 IS:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+;
