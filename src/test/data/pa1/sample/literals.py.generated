@@ -1,0 +1,71 @@
+Reading src/test/data/pa1/sample/literals.py
+{
+  "declarations" : [ ],
+  "statements" : [ {
+    "expr" : {
+      "value" : true,
+      "kind" : "BooleanLiteral",
+      "location" : [ 1, 1, 1, 4 ]
+    },
+    "kind" : "ExprStmt",
+    "location" : [ 1, 1, 1, 4 ]
+  }, {
+    "expr" : {
+      "value" : false,
+      "kind" : "BooleanLiteral",
+      "location" : [ 2, 1, 2, 5 ]
+    },
+    "kind" : "ExprStmt",
+    "location" : [ 2, 1, 2, 5 ]
+  }, {
+    "expr" : {
+      "value" : 1,
+      "kind" : "IntegerLiteral",
+      "location" : [ 3, 1, 3, 1 ]
+    },
+    "kind" : "ExprStmt",
+    "location" : [ 3, 1, 3, 1 ]
+  }, {
+    "expr" : {
+      "kind" : "NoneLiteral",
+      "location" : [ 4, 1, 4, 4 ]
+    },
+    "kind" : "ExprStmt",
+    "location" : [ 4, 1, 4, 4 ]
+  }, {
+    "expr" : {
+      "value" : "This is a string",
+      "kind" : "StringLiteral",
+      "location" : [ 5, 1, 5, 18 ]
+    },
+    "kind" : "ExprStmt",
+    "location" : [ 5, 1, 5, 18 ]
+  }, {
+    "expr" : {
+      "elements" : [ {
+        "value" : 1,
+        "kind" : "IntegerLiteral",
+        "location" : [ 6, 2, 6, 2 ]
+      }, {
+        "value" : 2,
+        "kind" : "IntegerLiteral",
+        "location" : [ 6, 5, 6, 5 ]
+      }, {
+        "value" : 3,
+        "kind" : "IntegerLiteral",
+        "location" : [ 6, 8, 6, 8 ]
+      } ],
+      "kind" : "ListExpr",
+      "location" : [ 6, 1, 6, 9 ]
+    },
+    "kind" : "ExprStmt",
+    "location" : [ 6, 1, 6, 9 ]
+  } ],
+  "errors" : {
+    "errors" : [ ],
+    "kind" : "Errors",
+    "location" : [ 0, 0, 0, 0 ]
+  },
+  "kind" : "Program",
+  "location" : [ 1, 1, 7, 1 ]
+}
