@@ -42,6 +42,7 @@ import java_cup.runtime.*;
     /** Return a terminal symbol of syntactic category TYPE and semantic
      *  value VALUE at the current source location. */
     private Symbol symbol(int type, Object value) {
+        // System.out.printf("<%d, '%s', '%s'> ", type, value.toString().replace("\n", "\\n").replace("\t", "\\t"), ChocoPyTokens.terminalNames[type]);
         return symbolFactory.newSymbol(ChocoPyTokens.terminalNames[type], type,
             new ComplexSymbolFactory.Location(yyline + 1, yycolumn + 1),
             new ComplexSymbolFactory.Location(yyline + 1,yycolumn + yylength()),
@@ -49,37 +50,96 @@ import java_cup.runtime.*;
     }
 
     // Indentation handling
+    private java.util.Queue<Symbol> pendingTokens = new java.util.LinkedList<>();
     private java.util.Stack<Integer> indentStack = new java.util.Stack<>();
     private boolean atStartOfLine = true;
-    private int currentIndent = 0;
+
     
-    {
-        indentStack.push(0); // Initialize with 0 indentation
+    private Symbol pending() {
+        if (pendingTokens.isEmpty())
+            return null;
+        yypushback(yylength());
+        return pendingTokens.poll();
     }
-    
-    private Symbol handleIndentation() throws java.io.IOException {
-        // Skip empty lines
-        if (yytext().trim().isEmpty()) {
-            atStartOfLine = true;
-            return null;
+
+    private Symbol check_pendings(Symbol s){
+        Symbol p = pending();
+        if (p != null) {
+            // System.out.println(p);
+            return p;
         }
-        
-        // Count the current indentation
-        String spaces = yytext();
-        currentIndent = spaces.length();
-        int prevIndent = indentStack.peek();
-        
-        if (currentIndent > prevIndent) {
-            indentStack.push(currentIndent);
-            return symbol(ChocoPyTokens.INDENT);
-        } else if (currentIndent < prevIndent) {
-            // Generate OUTDENT tokens until matching level
+        // System.out.println(s);
+        return s;
+    }
+
+    private void handleIndentation() throws java.io.IOException {
+        // System.out.print("<handling> ");
+
+        int currIndent = yytext().length();
+
+        if (indentStack.isEmpty() || indentStack.peek() < currIndent){
+            indentStack.push(currIndent);
+            // System.out.print("<queued ");
+            pendingTokens.add(symbol(ChocoPyTokens.INDENT));
+            // System.out.print("> ");
+            return;
+        }
+
+        if (indentStack.peek() == currIndent) {
+            return;
+        }
+
+        while (
+            !indentStack.isEmpty() &&
+            indentStack.peek() > currIndent
+        ) {
             indentStack.pop();
-            yypushback(yylength()); // Put back the line for reprocessing
-            return symbol(ChocoPyTokens.OUTDENT);
-        } else {
-            // Same indentation, no tokens needed
-            return null;
+            // System.out.print("<queued ");
+            pendingTokens.add(symbol(ChocoPyTokens.OUTDENT));
+            // System.out.print("> ");
+        }
+    }
+
+    private void NLIndentation() {
+        pendingTokens.add(symbol(ChocoPyTokens.NEWLINE));
+        // System.out.print("<nl handling> ");
+        int currIndent = yytext().replace("\n", "").length();
+
+        // Same indentation
+        if (
+            (indentStack.isEmpty() && currIndent == 0)
+            || (
+                !indentStack.isEmpty()
+                && indentStack.peek() == currIndent
+            )
+        ) {
+            return;
+        }
+
+        // More identation
+        if (
+            (indentStack.isEmpty() && currIndent > 0)
+            || (
+                !indentStack.isEmpty()
+                && indentStack.peek() < currIndent
+            )
+        ){
+            indentStack.push(currIndent);
+            // System.out.print("<queued ");
+            pendingTokens.add(symbol(ChocoPyTokens.INDENT));
+            // System.out.print("> ");
+            return;
+        }
+
+        // Less Indentation
+        while (
+            !indentStack.isEmpty() &&
+            indentStack.peek() > currIndent
+        ) {
+            indentStack.pop();
+            // System.out.print("<queued ");
+            pendingTokens.add(symbol(ChocoPyTokens.OUTDENT));
+            // System.out.print("> ");
         }
     }
 %}
@@ -98,65 +158,89 @@ Id = [a-zA-Z_][a-zA-Z0-9_]*
 
 
 <YYINITIAL> {
-
   /* Delimiters. */
   ^{WhiteSpace}+ {
+      // System.out.println("Checking");
       if (atStartOfLine) {
-          Symbol s = handleIndentation();
-          if (s != null) return s;
+          handleIndentation();
+      // System.out.println("Checking nl ws");
       }
       // Continue processing the rest of the line
       atStartOfLine = false;
   }
   
-  ^{WhiteSpace}*{Comment}{LineBreak} {
+  /*
+  ^{WhiteSpace}*{Comment}*{LineBreak} {
       // Skip comment-only lines but maintain line tracking
       atStartOfLine = true;
   }
+  */
   
-  {LineBreak} {
-      atStartOfLine = true;
-      return symbol(ChocoPyTokens.NEWLINE);
+  {LineBreak}{WhiteSpace}*{LineBreak} {
+    // System.out.println("Checking nl ws nl");
+    yypushback(1);
+    return symbol(ChocoPyTokens.NEWLINE);
   }
 
+  {LineBreak}{WhiteSpace}* {
+      // System.out.println("Checking nl ws");
+      atStartOfLine = false;
+      NLIndentation();
+
+  }
+
+  /*
+  {LineBreak} {
+      // System.out.println("Checking nl");
+      atStartOfLine = true;
+      return check_pendings(symbol(ChocoPyTokens.NEWLINE));
+  }
+  */
 
   /* Literals. */
-  {IntegerLiteral}            { return symbol(ChocoPyTokens.NUMBER, Integer.parseInt(yytext())); }
-  {StringLiteral}             { return symbol(ChocoPyTokens.STRING, yytext().replaceAll("^\"|\"$", "")); }
-  "True"                      { return symbol(ChocoPyTokens.BOOLEAN, true); }
-  "False"                     { return symbol(ChocoPyTokens.BOOLEAN, false); }
-  "None"                      { return symbol(ChocoPyTokens.NONE); }
+  {IntegerLiteral}            { return check_pendings(symbol(ChocoPyTokens.NUMBER, Integer.parseInt(yytext()))); }
+  {StringLiteral}             { return check_pendings(symbol(ChocoPyTokens.STRING, yytext().replaceAll("^\"|\"$", ""))); }
+  "True"                      { return check_pendings(symbol(ChocoPyTokens.BOOLEAN, true)); }
+  "False"                     { return check_pendings(symbol(ChocoPyTokens.BOOLEAN, false)); }
+  "None"                      { return check_pendings(symbol(ChocoPyTokens.NONE)); }
 
   /* Keywords */
-  "if"                      { return symbol(ChocoPyTokens.IF); }
-  "elif"                      { return symbol(ChocoPyTokens.ELIF); }
-  "else"                      { return symbol(ChocoPyTokens.ELSE); }
+  "if"                      { return check_pendings(symbol(ChocoPyTokens.IF)); }
+  "elif"                      { return check_pendings(symbol(ChocoPyTokens.ELIF)); }
+  "else"                      { return check_pendings(symbol(ChocoPyTokens.ELSE)); }
 
   /* Punctuation */
-  "\["                         { return symbol(ChocoPyTokens.BRA); }
-  "\]"                         { return symbol(ChocoPyTokens.KET); }
-  "\("                         { return symbol(ChocoPyTokens.PAREN); }
-  "\)"                         { return symbol(ChocoPyTokens.THESIS); }
-  ","                          { return symbol(ChocoPyTokens.COMMA); }
+  "\["                         { return check_pendings(symbol(ChocoPyTokens.BRA)); }
+  "\]"                         { return check_pendings(symbol(ChocoPyTokens.KET)); }
+  "\("                         { return check_pendings(symbol(ChocoPyTokens.PAREN)); }
+  "\)"                         { return check_pendings(symbol(ChocoPyTokens.THESIS)); }
+  ","                          { return check_pendings(symbol(ChocoPyTokens.COMMA)); }
+  ":"                          { return check_pendings(symbol(ChocoPyTokens.COLON)); }
 
   /* Operators. */
-  "+"                         { return symbol(ChocoPyTokens.PLUS, yytext()); }
-  "-"                         { return symbol(ChocoPyTokens.MINUS, yytext()); }
-  "=="                         { return symbol(ChocoPyTokens.EQ, yytext()); }
-  "!="                         { return symbol(ChocoPyTokens.NEQ, yytext()); }
-  ">"                          { return symbol(ChocoPyTokens.GT, yytext()); }
-  "<"                          { return symbol(ChocoPyTokens.LT, yytext()); }
-  ">="                         { return symbol(ChocoPyTokens.EGT, yytext()); }
-  "<="                         { return symbol(ChocoPyTokens.ELT, yytext()); }
-  "is"                      { return symbol(ChocoPyTokens.IS, yytext()); }
+  "+"                         { return check_pendings(symbol(ChocoPyTokens.PLUS, yytext())); }
+  "-"                         { return check_pendings(symbol(ChocoPyTokens.MINUS, yytext())); }
+  "=="                         { return check_pendings(symbol(ChocoPyTokens.EQ, yytext())); }
+  "!="                         { return check_pendings(symbol(ChocoPyTokens.NEQ, yytext())); }
+  ">"                          { return check_pendings(symbol(ChocoPyTokens.GT, yytext())); }
+  "<"                          { return check_pendings(symbol(ChocoPyTokens.LT, yytext())); }
+  ">="                         { return check_pendings(symbol(ChocoPyTokens.EGT, yytext())); }
+  "<="                         { return check_pendings(symbol(ChocoPyTokens.ELT, yytext())); }
+  "is"                      { return check_pendings(symbol(ChocoPyTokens.IS, yytext())); }
 
-  {Id}                        { return symbol(ChocoPyTokens.ID, yytext()); }
+  {Id}                        { return check_pendings(symbol(ChocoPyTokens.ID, yytext())); }
 
   /* Whitespace. */
   {WhiteSpace}                { /* ignore */ }
 }
 
-<<EOF>>                       { return symbol(ChocoPyTokens.EOF); }
+<<EOF>>                       {
+    while (!indentStack.isEmpty()) {
+        indentStack.pop();
+        pendingTokens.add(symbol(ChocoPyTokens.OUTDENT));
+    }
+    return check_pendings(symbol(ChocoPyTokens.EOF));
+}
 
 /* Error fallback. */
-[^]                           { return symbol(ChocoPyTokens.UNRECOGNIZED); }
+[^]                           { return check_pendings(symbol(ChocoPyTokens.UNRECOGNIZED)); }

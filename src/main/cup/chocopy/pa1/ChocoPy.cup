@@ -151,7 +151,8 @@ terminal Boolean BOOLEAN;
 terminal Integer NUMBER; 
 terminal NONE; 
 terminal IF, ELIF, ELSE;
-terminal PAREN, THESIS, BRA, KET, COMMA;
+terminal IF_EXPR, ELSE_EXPR;
+terminal PAREN, THESIS, BRA, KET, COMMA, COLON;
 terminal INDENT, OUTDENT;
 /* Returned by the lexer for erroneous tokens.  Since it does not appear in
  * the grammar, it indicates a syntax error. */
@@ -164,7 +165,7 @@ terminal UNRECOGNIZED;
  * of type <type>. */
 non terminal Program           program;
 non terminal List<Declaration> program_head;
-non terminal List<Stmt>        stmt_list, opt_stmt_list;
+non terminal List<Stmt>        stmt_list, opt_stmt_list, block, else_stmt, elif_stmt;
 non terminal List<Expr>        list_expr, args;
 non terminal Stmt              stmt, expr_stmt;
 non terminal Expr              expr, binary_expr;
@@ -172,7 +173,7 @@ non terminal Identifier        id;
 
 /* Precedences (lowest to highest) for resolving what would otherwise be
  * ambiguities in the form of shift/reduce conflicts.. */
-precedence right IF, ELSE;
+precedence right IF_EXPR, ELSE_EXPR;
 precedence nonassoc EQ, NEQ, GT, LT, EGT, ELT, IS;
 precedence left PLUS, MINUS;
 precedence left UMINUS;
@@ -213,9 +214,29 @@ stmt_list ::= stmt:s                 {: RESULT = single(s); :}
              * a syntax error. */
             ;
 
-stmt ::= expr_stmt:s NEWLINE {: RESULT = s; :}
-       | NEWLINE 
-              ;
+block ::=
+    COLON NEWLINE INDENT stmt_list:s OUTDENT {: RESULT = s; :}
+;
+
+stmt ::=
+    expr_stmt:s NEWLINE {: RESULT = s; :}
+    | IF expr:i block:t elif_stmt:e
+        {: RESULT = new IfStmt(ixleft, exright, i, t, e); :}
+    | NEWLINE 
+;
+
+elif_stmt ::=
+    ELIF expr:i block:t elif_stmt:e
+        {: RESULT = single(
+            new IfStmt(ixleft, exright, i, t, e)
+        ); :}
+    | else_stmt:e {: RESULT = e; :}
+;
+
+else_stmt ::=
+    {: RESULT = empty(); :}
+    | ELSE block:b {: RESULT = b; :}
+;
 
 expr_stmt ::=
     expr:e    {: RESULT = new ExprStmt(exleft, exright, e); :}
@@ -226,6 +247,7 @@ expr ::=
     | id:i PAREN args:a THESIS {: RESULT = new CallExpr(ixleft, axright, i, a); :}
     | expr:e1 IF expr:cond ELSE expr:e2 
         {: RESULT = new IfExpr(e1xleft, e2xright, cond, e1, e2); :}
+        %prec IF_EXPR 
     | MINUS:op expr:e     {: RESULT = new UnaryExpr(opxleft, exright, op, e); :}
         %prec UMINUS
     | NUMBER:n       {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
