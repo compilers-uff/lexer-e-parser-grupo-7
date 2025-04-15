@@ -145,6 +145,7 @@ action code {:
 terminal NEWLINE;
 terminal String PLUS, MINUS, UMINUS, MUL, DIV, MOD; 
 terminal String EQ, NEQ, GT, LT, EGT, ELT, IS;
+terminal String OR, NOT, AND;
 terminal String STRING; 
 terminal String ID; 
 terminal String ASSIGN; 
@@ -190,6 +191,8 @@ precedence left LBR;
 precedence right RBR;
 precedence left LPAR;
 precedence right RPAR;
+precedence left OR, NOT, AND;
+precedence left DOT;
 
 /* The start symbol. */
 start with program;
@@ -280,7 +283,8 @@ index_expr ::= expr:e1 LBR expr:e2 RBR:rbr {: RESULT = new IndexExpr(e1xleft, rb
               ;
 
 target ::= id:i {: RESULT = i; :}
-          | expr:e {: RESULT = e; :} 
+          | index_expr:i {: RESULT = i; :}
+          | member_expr:m {: RESULT = m; :} 
           ;
 
 expr ::=
@@ -294,6 +298,7 @@ expr ::=
         %prec IF_EXPR 
     | MINUS:op expr:e     {: RESULT = new UnaryExpr(opxleft, exright, op, e); :}
         %prec UMINUS
+    | NOT:op expr:exp {: RESULT = new UnaryExpr(opxleft, expxright, op, exp); :}
     | LBR:lbr list_expr:l RBR:rbr {: RESULT = new ListExpr(lbrxleft, rbrxright, l); :}
     | LPAR:lpar expr:e RPAR:rpar {: RESULT = e; :}
 ;
@@ -323,4 +328,6 @@ binary_expr ::=
     | expr:e1 EGT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
     | expr:e1 ELT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
     | expr:e1 IS:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 OR:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 AND:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
 ;

@@ -231,7 +231,10 @@ Id = [a-zA-Z_][a-zA-Z0-9_]*
   "<"                          { return check_pendings(symbol(ChocoPyTokens.LT, yytext())); }
   ">="                         { return check_pendings(symbol(ChocoPyTokens.EGT, yytext())); }
   "<="                         { return check_pendings(symbol(ChocoPyTokens.ELT, yytext())); }
-  "is"                      { return check_pendings(symbol(ChocoPyTokens.IS, yytext())); }
+  "is"                         { return check_pendings(symbol(ChocoPyTokens.IS, yytext())); }
+  "or"                         { return check_pendings(symbol(ChocoPyTokens.OR, yytext())); }
+  "not"                        { return check_pendings(symbol(ChocoPyTokens.NOT, yytext())); }
+  "and"                        { return check_pendings(symbol(ChocoPyTokens.AND, yytext())); }
 
   {Id}                        { return check_pendings(symbol(ChocoPyTokens.ID, yytext())); }
 
