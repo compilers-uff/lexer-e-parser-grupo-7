@@ -210,16 +210,21 @@ Id = [a-zA-Z_][a-zA-Z0-9_]*
   "else"                      { return check_pendings(symbol(ChocoPyTokens.ELSE)); }
 
   /* Punctuation */
-  "\["                         { return check_pendings(symbol(ChocoPyTokens.BRA)); }
-  "\]"                         { return check_pendings(symbol(ChocoPyTokens.KET)); }
-  "\("                         { return check_pendings(symbol(ChocoPyTokens.PAREN)); }
-  "\)"                         { return check_pendings(symbol(ChocoPyTokens.THESIS)); }
+  "("                          { return check_pendings(symbol(ChocoPyTokens.LPAR)); }
+  ")"                          { return check_pendings(symbol(ChocoPyTokens.RPAR)); }
+  "["                          { return check_pendings(symbol(ChocoPyTokens.LBR)); }
+  "]"                          { return check_pendings(symbol(ChocoPyTokens.RBR)); }
   ","                          { return check_pendings(symbol(ChocoPyTokens.COMMA)); }
   ":"                          { return check_pendings(symbol(ChocoPyTokens.COLON)); }
+  "="                          { return check_pendings(symbol(ChocoPyTokens.ASSIGN)); }
+  "."                          { return check_pendings(symbol(ChocoPyTokens.DOT)); }
 
   /* Operators. */
   "+"                         { return check_pendings(symbol(ChocoPyTokens.PLUS, yytext())); }
   "-"                         { return check_pendings(symbol(ChocoPyTokens.MINUS, yytext())); }
+  "*"                         { return check_pendings(symbol(ChocoPyTokens.MUL, yytext())); }
+  "/"                         { return check_pendings(symbol(ChocoPyTokens.DIV, yytext())); }
+  "%"                         { return check_pendings(symbol(ChocoPyTokens.MOD, yytext())); }
   "=="                         { return check_pendings(symbol(ChocoPyTokens.EQ, yytext())); }
   "!="                         { return check_pendings(symbol(ChocoPyTokens.NEQ, yytext())); }
   ">"                          { return check_pendings(symbol(ChocoPyTokens.GT, yytext())); }

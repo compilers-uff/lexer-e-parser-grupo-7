@@ -143,16 +143,17 @@ action code {:
  * in actions ( {: ... :} ).
  */
 terminal NEWLINE;
-terminal String PLUS, MINUS, UMINUS; 
+terminal String PLUS, MINUS, UMINUS, MUL, DIV, MOD; 
 terminal String EQ, NEQ, GT, LT, EGT, ELT, IS;
 terminal String STRING; 
 terminal String ID; 
+terminal String ASSIGN; 
 terminal Boolean BOOLEAN;
 terminal Integer NUMBER; 
 terminal NONE; 
 terminal IF, ELIF, ELSE;
 terminal IF_EXPR, ELSE_EXPR;
-terminal PAREN, THESIS, BRA, KET, COMMA, COLON;
+terminal LPAR, RPAR, LBR, RBR, COMMA, COLON, DOT;
 terminal INDENT, OUTDENT;
 /* Returned by the lexer for erroneous tokens.  Since it does not appear in
  * the grammar, it indicates a syntax error. */
@@ -166,22 +167,29 @@ terminal UNRECOGNIZED;
 non terminal Program           program;
 non terminal List<Declaration> program_head;
 non terminal List<Stmt>        stmt_list, opt_stmt_list, block, else_stmt, elif_stmt;
-non terminal List<Expr>        list_expr, args;
-non terminal Stmt              stmt, expr_stmt;
-non terminal Expr              expr, binary_expr;
+non terminal List<Expr>        list_expr, assign_target;
+non terminal Stmt              stmt, expr_stmt, assign_stmt;
+non terminal Expr              expr, binary_expr, target;
 non terminal Identifier        id;
+non terminal Literal           literal;
+non terminal MemberExpr        member_expr;
+non terminal IndexExpr         index_expr;
+non terminal VarDef            var_def;
+non terminal TypedVar          typed_var;
+non terminal TypeAnnotation    type;
 
 /* Precedences (lowest to highest) for resolving what would otherwise be
  * ambiguities in the form of shift/reduce conflicts.. */
 precedence right IF_EXPR, ELSE_EXPR;
 precedence nonassoc EQ, NEQ, GT, LT, EGT, ELT, IS;
 precedence left PLUS, MINUS;
+precedence left MUL, DIV, MOD;
 precedence left UMINUS;
 precedence nonassoc COMMA;
-precedence left BRA;
-precedence right KET;
-precedence left PAREN;
-precedence right THESIS;
+precedence left LBR;
+precedence right RBR;
+precedence left LPAR;
+precedence right RPAR;
 
 /* The start symbol. */
 start with program;
@@ -196,8 +204,8 @@ program ::= program_head:d opt_stmt_list:s
         ;
 
 /* Initial list of declarations. */
-program_head ::= /* not implemented; currently matches empty string */
-                                     {: RESULT = empty(); :}
+program_head ::= program_head:d var_def:vd {: RESULT = combine(d, vd); :}
+                | {: RESULT = empty(); :}
                 ;
 
 opt_stmt_list ::=                    {: RESULT = empty(); :}
@@ -218,8 +226,24 @@ block ::=
     COLON NEWLINE INDENT stmt_list:s OUTDENT {: RESULT = s; :}
 ;
 
+type ::= id:i {: RESULT = new ClassType(ixleft, ixright, i.name); :}
+        | LBR:lbr type:t RBR:rbr {: RESULT = new ListType(lbrxleft, rbrxright, t); :}
+        | STRING:str {: RESULT = new ClassType(strxleft, strxright, str); :}
+        ;
+
+typed_var ::= id:i COLON type:t {: RESULT = new TypedVar(ixleft, txright, i, t); :};
+
+var_def ::= typed_var:t ASSIGN literal:l NEWLINE          {: RESULT = new VarDef(txleft, lxright, t, l); :};
+
+literal ::= BOOLEAN:b {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
+          | NUMBER:n {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
+          | STRING:s {: RESULT = new StringLiteral(sxleft, sxright, s); :}
+          | NONE:n {: RESULT = new NoneLiteral(nxleft, nxright); :}
+          ;
+
 stmt ::=
     expr_stmt:s NEWLINE {: RESULT = s; :}
+    | assign_stmt:s NEWLINE {: RESULT = s; :}
     | IF expr:i block:t elif_stmt:e
         {: RESULT = new IfStmt(ixleft, exright, i, t, e); :}
     | NEWLINE 
@@ -242,25 +266,36 @@ expr_stmt ::=
     expr:e    {: RESULT = new ExprStmt(exleft, exright, e); :}
 ;
 
+assign_stmt ::= assign_target:at expr:e {: RESULT = new AssignStmt(getLeft(at), exright, at, e); :}
+            ;
+
+assign_target ::= assign_target:at target:t ASSIGN {: RESULT = combine(at, t); :}
+              | target:t ASSIGN {: RESULT = single(t); :}
+              ;
+
+member_expr ::= expr:e DOT id:i {: RESULT = new MemberExpr(exleft, ixright, e, i); :}
+              ;
+
+index_expr ::= expr:e1 LBR expr:e2 RBR:rbr {: RESULT = new IndexExpr(e1xleft, rbrxright, e1, e2); :}
+              ;
+
+target ::= id:i {: RESULT = i; :}
+          | expr:e {: RESULT = e; :} 
+          ;
+
 expr ::=
     binary_expr:e  {: RESULT = e; :}
-    | id:i PAREN args:a THESIS {: RESULT = new CallExpr(ixleft, axright, i, a); :}
-    | expr:e1 IF expr:cond ELSE expr:e2 
-        {: RESULT = new IfExpr(e1xleft, e2xright, cond, e1, e2); :}
+    | literal:l {: RESULT = l; :}
+    | member_expr:m {: RESULT = m; :}
+    | index_expr:i {: RESULT = i; :}
+    | member_expr:m LPAR list_expr:l RPAR:rpar {: RESULT = new MethodCallExpr(mxleft, rparxright, m, l); :}
+    | id:i LPAR list_expr:l RPAR:rpar {: RESULT = new CallExpr(ixleft, rparxright, i, l); :}
+    | expr:e1 IF expr:cond ELSE expr:e2 {: RESULT = new IfExpr(e1xleft, e2xright, cond, e1, e2); :}
         %prec IF_EXPR 
     | MINUS:op expr:e     {: RESULT = new UnaryExpr(opxleft, exright, op, e); :}
         %prec UMINUS
-    | NUMBER:n       {: RESULT = new IntegerLiteral(nxleft, nxright, n); :}
-    | BOOLEAN:b       {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
-    | STRING:s      {: RESULT = new StringLiteral(sxleft, sxright, s); :}
-    | NONE:n       {: RESULT = new NoneLiteral(nxleft, nxright); :}
-    | BRA:b list_expr:l KET:k {: RESULT = new ListExpr(bxleft, kxright, l); :}
-;
-
-args ::=
-    args:a COMMA expr:e {: RESULT = combine(a, e); :}
-    | expr:e {: RESULT = single(e); :}
-    | {: RESULT = empty(); :}
+    | LBR:lbr list_expr:l RBR:rbr {: RESULT = new ListExpr(lbrxleft, rbrxright, l); :}
+    | LPAR:lpar expr:e RPAR:rpar {: RESULT = e; :}
 ;
 
 id ::=
@@ -278,6 +313,9 @@ list_expr ::=
 binary_expr ::=
     expr:e1 PLUS:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
     | expr:e1 MINUS:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 MUL:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 DIV:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
+    | expr:e1 MOD:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
     | expr:e1 EQ:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
     | expr:e1 NEQ:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
     | expr:e1 GT:op expr:e2 {: RESULT = new BinaryExpr(e1xleft, e2xright, e1, op, e2); :}
