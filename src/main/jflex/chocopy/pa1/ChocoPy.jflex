@@ -34,12 +34,9 @@ import java.util.Iterator;
 
     /** Producer of token-related values for the parser. */
     final ComplexSymbolFactory symbolFactory = new ComplexSymbolFactory();
-    private int currIndent = 0; //Current Indentation Level
     private String currString = "";
     private int str_l = 0, str_c = 0; //Start location of a string.
     /*A stack that keeps track of the spaces in each Indentation Level*/
-    private Stack<Integer> stack = new Stack<>(); 
-    private boolean indentErrorUnchecked = true;
     /** Return a terminal symbol of syntactic category TYPE and no
      *  semantic value at the current source location. */
     private Symbol symbol(int type) {
@@ -54,6 +51,10 @@ import java.util.Iterator;
             new ComplexSymbolFactory.Location(yyline + 1,yycolumn + yylength()),
             value);
     }
+
+    private int currIndent = 0; //Current Indentation Level
+    private Stack<Integer> stack = new Stack<>(); 
+    private boolean indentErrorUnchecked = true;
 
     private Symbol whiteSpaceSymbol(int type, Object value){
         return symbolFactory.newSymbol(
@@ -78,23 +79,23 @@ import java.util.Iterator;
         if(stack.isEmpty()) return 0;
         return stack.pop();
     }
-    private int top(){
+    private int peek(){
         if(stack.isEmpty()) return 0;
         return stack.peek();
     }
 
     private Symbol emitDent() {
         yypushback(1);
-        if(top() > currIndent) {   
+        if(peek() > currIndent) {   
             pop();
-            if(top() < currIndent) {
-                currIndent = top();
+            if(peek() < currIndent) {
+                currIndent = peek();
                 return whiteSpaceSymbol(ChocoPyTokens.UNRECOGNIZED, "<bad indentation>");
             }
             return whiteSpaceSymbol(ChocoPyTokens.DEDENT, currIndent);
         }
         yybegin(AFTER);
-        if(top()< currIndent) {   
+        if(peek()< currIndent) {   
             push(currIndent);
             return whiteSpaceSymbol(ChocoPyTokens.INDENT, currIndent);
         }
