@@ -200,17 +200,17 @@ terminal String UNRECOGNIZED;
  * of type <type>. */
 non terminal Program           program;
 non terminal List<Declaration> program_head, class_body, class_body_defs, fun_body_decs;
-non terminal List<Stmt>        stmt_list, opt_stmt_list, block, else_body;
+non terminal List<Stmt>        list_stmt, opt_stmt_list, block, else_body;
 non terminal Stmt              stmt, simple_stmt;
 non terminal Expr              expr, pexpr, cexpr;
 non terminal VarDef            var_def;
 non terminal ClassDef          class_def;
 non terminal FuncDef           fun_def;
 non terminal Literal           literal;
-non terminal StringLiteral     comp_op;
+non terminal StringLiteral     c_op;
 non terminal TypedVar          typed_var;
 non terminal TypeAnnotation    type, ret_type;
-non terminal Identifier        identifier;
+non terminal Identifier        id;
 non terminal List<TypedVar>    typed_vars;
 non terminal GlobalDecl        global_decl;
 non terminal NonLocalDecl      nonlocal_decl;
@@ -255,10 +255,10 @@ program_head ::= program_head:d var_def:vd {: RESULT = combine(d, vd); :}
                 ;
                 
 opt_stmt_list ::= {: RESULT = empty(); :}
-                | stmt_list:s {: RESULT = s; :}
+                | list_stmt:s {: RESULT = s; :}
                 ;
 
-class_def ::= CLASS:c identifier:id LPAR identifier:parentId RPAR COLON NEWLINE INDENT class_body:cb DEDENT   {: RESULT = new ClassDef(cxleft, getRight(cb), id, parentId, cb); :}; 
+class_def ::= CLASS:c id:i LPAR id:parentId RPAR COLON NEWLINE INDENT class_body:cb DEDENT   {: RESULT = new ClassDef(cxleft, getRight(cb), i, parentId, cb); :}; 
 
 class_body ::= PASS NEWLINE {: RESULT = empty(); :}
               | class_body_defs:defs {: RESULT = defs; :}
@@ -271,8 +271,8 @@ class_body_defs ::= class_body_defs:defs var_def:vd{: RESULT = combine(defs, vd)
                   | fun_def:fd{: RESULT = single(fd); :}
                   ;
 
-fun_def ::= DEF:def identifier:id LPAR typed_vars:params RPAR ret_type:rt COLON:col NEWLINE INDENT fun_body_decs:fbd stmt_list:sl DEDENT       
-            {: TypeAnnotation _rt = rt;if((rt instanceof ClassType) && ((ClassType)rt).className == "<None>") _rt = new ClassType( colxright, colxright, "<None>");RESULT = new FuncDef(defxleft, getRight(sl), id, params, _rt, fbd, sl); :}
+fun_def ::= DEF:def id:i LPAR typed_vars:params RPAR ret_type:rt COLON:col NEWLINE INDENT fun_body_decs:fbd list_stmt:sl DEDENT       
+            {: TypeAnnotation _rt = rt;if((rt instanceof ClassType) && ((ClassType)rt).className == "<None>") _rt = new ClassType( colxright, colxright, "<None>");RESULT = new FuncDef(defxleft, getRight(sl), i, params, _rt, fbd, sl); :}
             ;
 
 ret_type ::= ARROW type:t {: RESULT= t; :}
@@ -293,23 +293,23 @@ fun_body_decs ::= fun_body_decs:fbd  global_decl:gd {: RESULT= combine(fbd, gd);
                 | {: RESULT= empty(); :}
                 ;
 
-typed_var ::= identifier:id COLON type:t {: RESULT = new TypedVar(idxleft, txright, id, t); :};
+typed_var ::= id:i COLON type:t {: RESULT = new TypedVar(ixleft, txright, i, t); :};
 
-type ::= identifier:id {: RESULT = new ClassType(idxleft, idxright, id.name); :}
+type ::= id:i {: RESULT = new ClassType(ixleft, ixright, i.name); :}
       | STRING:str {: RESULT = new ClassType(strxleft, strxright, str); :}
       | LBR:lbr type:t RBR:rbr {: RESULT = new ListType(lbrxleft, rbrxright, t); :}
       ;
 
-global_decl ::= GLOBAL:g identifier:id NEWLINE {: RESULT = new GlobalDecl(gxleft, idxright, id); :};
+global_decl ::= GLOBAL:g id:i NEWLINE {: RESULT = new GlobalDecl(gxleft, ixright, i); :};
 
-nonlocal_decl ::= NONLOCAL:n identifier:id NEWLINE {: RESULT = new NonLocalDecl(nxleft, idxright, id); :};
+nonlocal_decl ::= NONLOCAL:n id:i NEWLINE {: RESULT = new NonLocalDecl(nxleft, ixright, i); :};
 
 var_def ::= typed_var:t ASSIGN literal:l NEWLINE {: RESULT = new VarDef(txleft, lxright, t, l); :};
 
 stmt ::= simple_stmt:s NEWLINE {: RESULT = s; :}
         | IF:i expr:cond COLON block:b else_body:elb {: RESULT = new IfStmt(ixleft, getRight(elb), cond, b, elb); :}
         | WHILE:wh expr:cond COLON block:b {: RESULT = new WhileStmt(whxleft, getRight(b), cond, b); :}
-        | FOR:f identifier:id IN expr:e COLON block:b {: RESULT = new ForStmt(fxleft, getRight(b), id,  e, b); :}
+        | FOR:f id:i IN expr:e COLON block:b {: RESULT = new ForStmt(fxleft, getRight(b), i,  e, b); :}
         ;
 
 else_body ::= ELSE:el COLON block:b {: RESULT = b; :}
@@ -328,7 +328,7 @@ opt_target ::= opt_target:ot target:t ASSIGN {: RESULT = combine(ot, t); :}
               | target:t ASSIGN {: RESULT = single(t); :}
               ;
    
-block ::= NEWLINE INDENT stmt_list:sl DEDENT {: RESULT = sl; :};
+block ::= NEWLINE INDENT list_stmt:sl DEDENT {: RESULT = sl; :};
 
 literal ::= NONE:n {: RESULT = new NoneLiteral(nxleft, nxright); :}
           | BOOL:b {: RESULT = new BooleanLiteral(bxleft, bxright, b); :}
@@ -344,23 +344,23 @@ expr ::= cexpr:ce {: RESULT = ce; :}
        ;
 
 cexpr ::= pexpr:pe {: RESULT = pe; :}
-          | pexpr:p1 comp_op:co cexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, co.value, p2); :}
+          | pexpr:p1 c_op:co cexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, co.value, p2); :}
         ;
 
-pexpr ::= identifier:id {: RESULT = id; :}
+pexpr ::= id:i {: RESULT = i; :}
         | literal:l {: RESULT = l; :}
         | LBR:lbr expr_list:l RBR:rbr {: RESULT = new ListExpr(lbrxleft, rbrxright, l); :}
         | LPAR:lpar expr:e RPAR:rpar {: RESULT = e; :}
         | member_expr:m {: RESULT = m; :}
         | index_expr:i {: RESULT = i; :}
         | member_expr:m LPAR expr_list:l RPAR:rpar {: RESULT = new MethodCallExpr(mxleft, rparxright, m, l); :}
-        | identifier:id LPAR expr_list:l RPAR:rpar {: RESULT = new CallExpr(idxleft, rparxright, id, l); :}
-        | pexpr:p1 PLUS:bo pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, bo, p2); :}
-        | pexpr:p1 MINUS:bo pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, bo, p2); :}
-        | pexpr:p1 MUL:bo pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, bo, p2); :}
-        | pexpr:p1 DIV:bo pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, bo, p2); :}
-        | pexpr:p1 MOD:bo pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, bo, p2); :}
-        | MINUS:m pexpr:p {: RESULT = new UnaryExpr(mxleft, pxright, m, p); :} %prec UMINUS
+        | id:i LPAR expr_list:l RPAR:rpar {: RESULT = new CallExpr(ixleft, rparxright, i, l); :}
+        | pexpr:p1 PLUS:op pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, op, p2); :}
+        | pexpr:p1 MINUS:op pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, op, p2); :}
+        | pexpr:p1 MUL:op pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, op, p2); :}
+        | pexpr:p1 DIV:op pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, op, p2); :}
+        | pexpr:p1 MOD:op pexpr:p2 {: RESULT = new BinaryExpr(p1xleft, p2xright, p1, op, p2); :}
+        | MINUS:op pexpr:p {: RESULT = new UnaryExpr(opxleft, pxright, op, p); :} %prec UMINUS
         ;
         
 expr_list ::= expr:e {: RESULT = single(e); :}
@@ -368,35 +368,30 @@ expr_list ::= expr:e {: RESULT = single(e); :}
             | {: RESULT = new ArrayList<Expr>(); :}
             ;
 
-comp_op ::= EQUAL:a {: RESULT = new StringLiteral(axleft, axright, "=="); :} 
-          | NEQ:a {: RESULT = new StringLiteral(axleft, axright, "!="); :} 
-          | LEQ:a {: RESULT = new StringLiteral(axleft, axright, "<="); :} 
-          | GEQ:a {: RESULT = new StringLiteral(axleft, axright, ">="); :} 
-          | LT:a {: RESULT = new StringLiteral(axleft, axright, "<"); :} 
-          | GT:a {: RESULT = new StringLiteral(axleft, axright, ">"); :} 
-          | IS:a {: RESULT = new StringLiteral(axleft, axright, "is"); :}
+c_op ::= EQUAL:op {: RESULT = new StringLiteral(opxleft, opxright, "=="); :} 
+          | NEQ:op {: RESULT = new StringLiteral(opxleft, opxright, "!="); :} 
+          | LEQ:op {: RESULT = new StringLiteral(opxleft, opxright, "<="); :} 
+          | GEQ:op {: RESULT = new StringLiteral(opxleft, opxright, ">="); :} 
+          | LT:op {: RESULT = new StringLiteral(opxleft, opxright, "<"); :} 
+          | GT:op {: RESULT = new StringLiteral(opxleft, opxright, ">"); :} 
+          | IS:op {: RESULT = new StringLiteral(opxleft, opxright, "is"); :}
           ;
 
-member_expr ::= pexpr:p DOT identifier:id {: RESULT = new MemberExpr(pxleft, idxright, p, id); :}
+member_expr ::= pexpr:p DOT id:i {: RESULT = new MemberExpr(pxleft, ixright, p, i); :}
               ;
 
 index_expr ::= pexpr:p LBR expr:e RBR:rbr {: RESULT = new IndexExpr(pxleft, rbrxright, p, e); :}
               ;
 
-target ::= identifier:id {: RESULT = id; :}
+target ::= id:i {: RESULT = i; :}
           | member_expr:m {: RESULT = m; :} 
           | index_expr:i {: RESULT = i; :}
           ;
 
-identifier ::= ID:idStr {: RESULT = new Identifier(idStrxleft, idStrxright, idStr); :};
+id ::= ID:idStr {: RESULT = new Identifier(idStrxleft, idStrxright, idStr); :};
 
 
-stmt_list ::= stmt:s {: RESULT = single(s); :}
-            | stmt_list:l stmt:s {: RESULT = combine(l, s); :}
-            | stmt_list:l error {: RESULT = l; :}
-            /* If there is a syntax error in the source, this says to discard
-             * symbols from the parsing stack and perform reductions until
-             * there is a stmt_list on top of the stack, and then to discard
-             * input symbols until it is possible to shift again, reporting
-             * a syntax error. */
+list_stmt ::= stmt:s {: RESULT = single(s); :}
+            | list_stmt:l stmt:s {: RESULT = combine(l, s); :}
+            | list_stmt:l error {: RESULT = l; :}
             ;
