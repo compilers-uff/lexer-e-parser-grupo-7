@@ -275,6 +275,14 @@ fun_def ::= DEF:def id:i LPAR typed_vars:params RPAR ret_type:rt COLON:col NEWLI
             {: TypeAnnotation _rt = rt;if((rt instanceof ClassType) && ((ClassType)rt).className == "<None>") _rt = new ClassType( colxright, colxright, "<None>");RESULT = new FuncDef(defxleft, getRight(sl), i, params, _rt, fbd, sl); :}
             ;
 
+fun_body_decs ::= fun_body_decs:fbd  global_decl:gd {: RESULT= combine(fbd, gd); :}
+                | fun_body_decs:fbd  nonlocal_decl:nd {: RESULT= combine(fbd, nd); :} 
+                | fun_body_decs:fbd  var_def:vd {: RESULT= combine(fbd, vd); :}
+                | fun_body_decs:fbd  fun_def:fd {: RESULT= combine(fbd, fd); :} 
+                | fun_body_decs:fbd  error {: RESULT= fbd; :} 
+                | {: RESULT= empty(); :}
+                ;
+
 ret_type ::= ARROW type:t {: RESULT= t; :}
           | {: RESULT= new ClassType(null, null,"<None>"); :}
           ;
@@ -284,14 +292,6 @@ typed_vars ::= typed_var:tv {: RESULT= single(tv); :}
               | typed_vars:tvs COMMA error {: RESULT= tvs; :}
               | {: RESULT= empty(); :}
               ; 
-
-fun_body_decs ::= fun_body_decs:fbd  global_decl:gd {: RESULT= combine(fbd, gd); :}
-                | fun_body_decs:fbd  nonlocal_decl:nd {: RESULT= combine(fbd, nd); :} 
-                | fun_body_decs:fbd  var_def:vd {: RESULT= combine(fbd, vd); :}
-                | fun_body_decs:fbd  fun_def:fd {: RESULT= combine(fbd, fd); :} 
-                | fun_body_decs:fbd  error {: RESULT= fbd; :} 
-                | {: RESULT= empty(); :}
-                ;
 
 typed_var ::= id:i COLON type:t {: RESULT = new TypedVar(ixleft, txright, i, t); :};
 
