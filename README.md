@@ -56,12 +56,17 @@ Team member 3: Thiago Thomaz da Rocha
 
 ### Que estratégia você usou para emitir tokens INDENT e DEDENT corretamente? Mencione o nome do arquivo e o(s) número(s) da(s) linha(s) para a parte principal da sua solução.
 
-O arquivo onde se encontra a solução é o ChocoPy.jflex, mais precisamente, nas linhas 55 a 103. A estratégia selecionada consiste na criação de uma pilha e, a cada caracter "vazio", o programa adiciona ao contador da indentação atual, o valor apropriado, que pode ser 8 ou 1 e, no momento que encontra algo diferente disso, compara com os valores de indentação já presentes na pilha.
+O arquivo onde se encontra a solução é o ChocoPy.jflex, mais precisamente entre as linhas 55 e 103. A estratégia selecionada consiste na criação de uma pilha e, a cada caracter "vazio", o programa adiciona ao contador da indentação atual, o valor apropriado, que pode ser 8 ou 1 e, no momento que encontra algo diferente disso, compara com os valores de indentação já presentes na pilha.
+
+Para a execução correta do algoritmo acima, utilizamos o "yypushback()"  que nos permitiu a leitura repetida da mesma String de entrada, possibilitando, assim, a geraração de mais de um DEDENT para a mesma linha e também analisar o restante dela.
 
 Quando a indentação corrente é maior que o topo da pilha, um token INDENT é emitido. Caso seja menor, as indentações são retiradas do topo da pilha até o momento em que a indentação atual e a informação presente no topo da pilha sejam iguais, emitindo DEDENTS para cada um.
 
 
 ### Como sua solução ao item 1. se relaciona ao descrito na seção 3.1 do manual de referência de ChocoPy? (Arquivo chocopy_language_reference.pdf.)
 
+A emissão dos tokens INDENT, DEDENT e NEWLINE não ocorrem em lihas vazias, logo, a estrutura sintática da linguagem é preservada. A leitura correta de um código Python consegue gerar um DEDENT para cada INDENT emitido, delimitando corretamente os blocos do programa.
 
 ### Qual foi a característica mais difícil da linguagem (não incluindo identação) neste projeto? Por que foi um desafio? Mencione o nome do arquivo e o(s) número(s) da(s) linha(s) para a parte principal de a sua solução.
+
+A parte que nos foi mais trabalhosa está no arquivo ChocoPy.cup, entre as linhas 284 até 294. 
