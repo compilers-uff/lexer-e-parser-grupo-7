@@ -1,7 +1,8 @@
 command="java -cp chocopy-ref.jar:target/assignment.jar chocopy.ChocoPy --pass=s --dir src/test/data/pa1/sample"
 
 if [ -z "$1" ]; then
-    $command
+    mvn package
+    $command --test
 elif [ "$1" == "--help" ]; then
     echo this is the help i want to print put eventually
 elif [ "$1" == "--passed" ]; then

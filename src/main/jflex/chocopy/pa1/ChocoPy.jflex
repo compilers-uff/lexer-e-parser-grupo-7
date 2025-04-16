@@ -1,5 +1,7 @@
 package chocopy.pa1;
 import java_cup.runtime.*;
+import java.util.Stack;
+import java.util.Iterator;
 
 %%
 
@@ -8,7 +10,7 @@ import java_cup.runtime.*;
 %unicode
 %line
 %column
-
+%states AFTER, STR
 %class ChocoPyLexer
 %public
 
@@ -32,7 +34,12 @@ import java_cup.runtime.*;
 
     /** Producer of token-related values for the parser. */
     final ComplexSymbolFactory symbolFactory = new ComplexSymbolFactory();
-
+    private int currIndent = 0; //Current Indentation Level
+    private String currString = "";
+    private int str_l = 0, str_c = 0; //Start location of a string.
+    /*A stack that keeps track of the spaces in each Indentation Level*/
+    private Stack<Integer> stack = new Stack<>(); 
+    private boolean indentErrorUnchecked = true;
     /** Return a terminal symbol of syntactic category TYPE and no
      *  semantic value at the current source location. */
     private Symbol symbol(int type) {
@@ -42,106 +49,58 @@ import java_cup.runtime.*;
     /** Return a terminal symbol of syntactic category TYPE and semantic
      *  value VALUE at the current source location. */
     private Symbol symbol(int type, Object value) {
-        // System.out.printf("<%d, '%s', '%s'> ", type, value.toString().replace("\n", "\\n").replace("\t", "\\t"), ChocoPyTokens.terminalNames[type]);
         return symbolFactory.newSymbol(ChocoPyTokens.terminalNames[type], type,
             new ComplexSymbolFactory.Location(yyline + 1, yycolumn + 1),
             new ComplexSymbolFactory.Location(yyline + 1,yycolumn + yylength()),
             value);
     }
 
-    // Indentation handling
-    private java.util.Queue<Symbol> pendingTokens = new java.util.LinkedList<>();
-    private java.util.Stack<Integer> indentStack = new java.util.Stack<>();
-    private boolean atStartOfLine = true;
-
-    
-    private Symbol pending() {
-        if (pendingTokens.isEmpty())
-            return null;
-        yypushback(yylength());
-        return pendingTokens.poll();
+    private Symbol whiteSpaceSymbol(int type, Object value){
+        return symbolFactory.newSymbol(
+            ChocoPyTokens.terminalNames[type],
+            type,
+            new ComplexSymbolFactory.Location(
+                yyline + 1,
+                yycolumn - 1
+            ),
+            new ComplexSymbolFactory.Location(
+                yyline + 1,
+                yycolumn + yylength()
+            ),
+            value
+        );
     }
 
-    private Symbol check_pendings(Symbol s){
-        Symbol p = pending();
-        if (p != null) {
-            // System.out.println(p);
-            return p;
-        }
-        // System.out.println(s);
-        return s;
+    private void push(int indent){
+        stack.push(indent);
+    }
+    private int pop(){
+        if(stack.isEmpty()) return 0;
+        return stack.pop();
+    }
+    private int top(){
+        if(stack.isEmpty()) return 0;
+        return stack.peek();
     }
 
-    private void handleIndentation() throws java.io.IOException {
-        // System.out.print("<handling> ");
-
-        int currIndent = yytext().length();
-
-        if (indentStack.isEmpty() || indentStack.peek() < currIndent){
-            indentStack.push(currIndent);
-            // System.out.print("<queued ");
-            pendingTokens.add(symbol(ChocoPyTokens.INDENT));
-            // System.out.print("> ");
-            return;
+    private Symbol emitDent() {
+        yypushback(1);
+        if(top() > currIndent) {   
+            pop();
+            if(top() < currIndent) {
+                currIndent = top();
+                return whiteSpaceSymbol(ChocoPyTokens.UNRECOGNIZED, "<bad indentation>");
+            }
+            return whiteSpaceSymbol(ChocoPyTokens.DEDENT, currIndent);
         }
-
-        if (indentStack.peek() == currIndent) {
-            return;
+        yybegin(AFTER);
+        if(top()< currIndent) {   
+            push(currIndent);
+            return whiteSpaceSymbol(ChocoPyTokens.INDENT, currIndent);
         }
-
-        while (
-            !indentStack.isEmpty() &&
-            indentStack.peek() > currIndent
-        ) {
-            indentStack.pop();
-            // System.out.print("<queued ");
-            pendingTokens.add(symbol(ChocoPyTokens.OUTDENT));
-            // System.out.print("> ");
-        }
+        return null;
     }
 
-    private void NLIndentation() {
-        pendingTokens.add(symbol(ChocoPyTokens.NEWLINE));
-        // System.out.print("<nl handling> ");
-        int currIndent = yytext().replace("\n", "").length();
-
-        // Same indentation
-        if (
-            (indentStack.isEmpty() && currIndent == 0)
-            || (
-                !indentStack.isEmpty()
-                && indentStack.peek() == currIndent
-            )
-        ) {
-            return;
-        }
-
-        // More identation
-        if (
-            (indentStack.isEmpty() && currIndent > 0)
-            || (
-                !indentStack.isEmpty()
-                && indentStack.peek() < currIndent
-            )
-        ){
-            indentStack.push(currIndent);
-            // System.out.print("<queued ");
-            pendingTokens.add(symbol(ChocoPyTokens.INDENT));
-            // System.out.print("> ");
-            return;
-        }
-
-        // Less Indentation
-        while (
-            !indentStack.isEmpty() &&
-            indentStack.peek() > currIndent
-        ) {
-            indentStack.pop();
-            // System.out.print("<queued ");
-            pendingTokens.add(symbol(ChocoPyTokens.OUTDENT));
-            // System.out.print("> ");
-        }
-    }
 %}
 
 /* Macros (regexes used in rules below) */
@@ -149,106 +108,119 @@ import java_cup.runtime.*;
 WhiteSpace = [ \t]
 LineBreak  = \r|\n|\r\n
 
-IntegerLiteral = 0 | [1-9][0-9]*
-StringLiteral = \"(\\.|[^\"\n])*\"
-Comment = "#".*
-Id = [a-zA-Z_][a-zA-Z0-9_]*
+
+IntegerLiteral = 0|[1-9][0-9]* // Accroding to the manual, 00+ is illeagal
+StringLiteral = ([^\"\\]|(\\\")|(\\t)|(\\r)|(\\n)|(\\\\))+ // \n, \r, \t, \\, \" and Anything except \ and " 
+Identifiers = (_|[a-z]|[A-Z])(_|[a-z]|[A-Z]|[0-9])* 
+Comments = #[^\r\n]*
 
 %%
 
+<YYINITIAL>{
+  {WhiteSpace} { currIndent += yytext() == "\t" ? 8 : 1; }
+  
+  {LineBreak} { currIndent = 0; }
+  {Comments} { /* ignored */ } 
 
-<YYINITIAL> {
+  [^ \t\r\n#] {
+    Symbol s = emitDent();
+    if (s != null) return s;
+  }
+}
+
+
+<AFTER> {
+
   /* Delimiters. */
-  ^{WhiteSpace}+ {
-      // System.out.println("Checking");
-      if (atStartOfLine) {
-          handleIndentation();
-      // System.out.println("Checking nl ws");
-      }
-      // Continue processing the rest of the line
-      atStartOfLine = false;
-  }
-  
-  /*
-  ^{WhiteSpace}*{Comment}*{LineBreak} {
-      // Skip comment-only lines but maintain line tracking
-      atStartOfLine = true;
-  }
-  */
-  
-  {LineBreak}{WhiteSpace}*{LineBreak} {
-    // System.out.println("Checking nl ws nl");
-    yypushback(1);
-    return symbol(ChocoPyTokens.NEWLINE);
-  }
-
-  {LineBreak}{WhiteSpace}* {
-      // System.out.println("Checking nl ws");
-      atStartOfLine = false;
-      NLIndentation();
-
-  }
-
-  /*
-  {LineBreak} {
-      // System.out.println("Checking nl");
-      atStartOfLine = true;
-      return check_pendings(symbol(ChocoPyTokens.NEWLINE));
-  }
-  */
+  {LineBreak}                    { yybegin(YYINITIAL); currIndent = 0;indentErrorUnchecked = true; return symbol(ChocoPyTokens.NEWLINE);}
+  ":"                            { return symbol(ChocoPyTokens.COLON); }
+  ","                            { return symbol(ChocoPyTokens.COMMA); }
 
   /* Literals. */
-  {IntegerLiteral}            { return check_pendings(symbol(ChocoPyTokens.NUMBER, Integer.parseInt(yytext()))); }
-  {StringLiteral}             { return check_pendings(symbol(ChocoPyTokens.STRING, yytext().replaceAll("^\"|\"$", ""))); }
-  "True"                      { return check_pendings(symbol(ChocoPyTokens.BOOLEAN, true)); }
-  "False"                     { return check_pendings(symbol(ChocoPyTokens.BOOLEAN, false)); }
-  "None"                      { return check_pendings(symbol(ChocoPyTokens.NONE)); }
+  {IntegerLiteral}               { return symbol(ChocoPyTokens.NUMBER,
+                                                 Integer.parseInt(yytext())); }
 
-  /* Keywords */
-  "if"                      { return check_pendings(symbol(ChocoPyTokens.IF)); }
-  "elif"                      { return check_pendings(symbol(ChocoPyTokens.ELIF)); }
-  "else"                      { return check_pendings(symbol(ChocoPyTokens.ELSE)); }
+  "\""                           { yybegin(STR); str_l = yyline + 1; str_c = yycolumn + 1; currString = ""; } //Start taking a string when see a "
+  "False"                        { return symbol(ChocoPyTokens.BOOL, false); }
+  "True"                         { return symbol(ChocoPyTokens.BOOL, true); }
+  "None"                         { return symbol(ChocoPyTokens.NONE); }
 
-  /* Punctuation */
-  "("                          { return check_pendings(symbol(ChocoPyTokens.LPAR)); }
-  ")"                          { return check_pendings(symbol(ChocoPyTokens.RPAR)); }
-  "["                          { return check_pendings(symbol(ChocoPyTokens.LBR)); }
-  "]"                          { return check_pendings(symbol(ChocoPyTokens.RBR)); }
-  ","                          { return check_pendings(symbol(ChocoPyTokens.COMMA)); }
-  ":"                          { return check_pendings(symbol(ChocoPyTokens.COLON)); }
-  "="                          { return check_pendings(symbol(ChocoPyTokens.ASSIGN)); }
-  "."                          { return check_pendings(symbol(ChocoPyTokens.DOT)); }
+  /*Keywords*/
+  "if"                           { return symbol(ChocoPyTokens.IF); }
+  "else"                         { return symbol(ChocoPyTokens.ELSE); }
+  "elif"                         { return symbol(ChocoPyTokens.ELIF); }
+  "while"                        { return symbol(ChocoPyTokens.WHILE); }
+  "class"                        { return symbol(ChocoPyTokens.CLASS); }
+  "def"                          { return symbol(ChocoPyTokens.DEF); }
+  "lambda"                       { return symbol(ChocoPyTokens.LAMBDA); }
+  "as"                           { return symbol(ChocoPyTokens.AS); }
+  "for"                          { return symbol(ChocoPyTokens.FOR); }
+  "global"                       { return symbol(ChocoPyTokens.GLOBAL); }
+  "in"                           { return symbol(ChocoPyTokens.IN); }
+  "nonlocal"                     { return symbol(ChocoPyTokens.NONLOCAL); }
+  "pass"                         { return symbol(ChocoPyTokens.PASS); }
+  "return"                       { return symbol(ChocoPyTokens.RETURN); }
+  "assert"                       { return symbol(ChocoPyTokens.ASSERT); }
+  "await"                        { return symbol(ChocoPyTokens.AWAIT); }
+  "break"                        { return symbol(ChocoPyTokens.BREAK); }
+  "continue"                     { return symbol(ChocoPyTokens.CONTINUE); }
+  "del"                          { return symbol(ChocoPyTokens.DEL); }
+  "except"                       { return symbol(ChocoPyTokens.EXCEPT); }
+  "finally"                      { return symbol(ChocoPyTokens.FINALLY); }
+  "from"                         { return symbol(ChocoPyTokens.FROM); }
+  "import"                       { return symbol(ChocoPyTokens.IMPORT); }
+  "raise"                        { return symbol(ChocoPyTokens.RAISE); }
+  "try"                          { return symbol(ChocoPyTokens.TRY); }
+  "with"                         { return symbol(ChocoPyTokens.WITH); }
+  "yield"                        { return symbol(ChocoPyTokens.YIELD); }
+
 
   /* Operators. */
-  "+"                         { return check_pendings(symbol(ChocoPyTokens.PLUS, yytext())); }
-  "-"                         { return check_pendings(symbol(ChocoPyTokens.MINUS, yytext())); }
-  "*"                         { return check_pendings(symbol(ChocoPyTokens.MUL, yytext())); }
-  "/"                         { return check_pendings(symbol(ChocoPyTokens.DIV, yytext())); }
-  "%"                         { return check_pendings(symbol(ChocoPyTokens.MOD, yytext())); }
-  "=="                         { return check_pendings(symbol(ChocoPyTokens.EQ, yytext())); }
-  "!="                         { return check_pendings(symbol(ChocoPyTokens.NEQ, yytext())); }
-  ">"                          { return check_pendings(symbol(ChocoPyTokens.GT, yytext())); }
-  "<"                          { return check_pendings(symbol(ChocoPyTokens.LT, yytext())); }
-  ">="                         { return check_pendings(symbol(ChocoPyTokens.EGT, yytext())); }
-  "<="                         { return check_pendings(symbol(ChocoPyTokens.ELT, yytext())); }
-  "is"                         { return check_pendings(symbol(ChocoPyTokens.IS, yytext())); }
-  "or"                         { return check_pendings(symbol(ChocoPyTokens.OR, yytext())); }
-  "not"                        { return check_pendings(symbol(ChocoPyTokens.NOT, yytext())); }
-  "and"                        { return check_pendings(symbol(ChocoPyTokens.AND, yytext())); }
-
-  {Id}                        { return check_pendings(symbol(ChocoPyTokens.ID, yytext())); }
-
+  "+"                            { return symbol(ChocoPyTokens.PLUS); }
+  "-"                            { return symbol(ChocoPyTokens.MINUS); }
+  "*"                            { return symbol(ChocoPyTokens.MUL); }
+  "//"                           { return symbol(ChocoPyTokens.DIV); }  
+  "/"                            { return symbol(ChocoPyTokens.DIV); }  //Accroding to manual, chocopy don't have fp division, '/', '//' should be integr division
+  "%"                            { return symbol(ChocoPyTokens.MOD); }  
+  ">"                            { return symbol(ChocoPyTokens.GT); }
+  "<"                            { return symbol(ChocoPyTokens.LT); }
+  "=="                           { return symbol(ChocoPyTokens.EQUAL); }
+  "!="                           { return symbol(ChocoPyTokens.NEQ); }
+  ">="                           { return symbol(ChocoPyTokens.GEQ); }
+  "<="                           { return symbol(ChocoPyTokens.LEQ); }
+  "="                            { return symbol(ChocoPyTokens.ASSIGN); }
+  "and"                          { return symbol(ChocoPyTokens.AND); }
+  "or"                           { return symbol(ChocoPyTokens.OR); }
+  "not"                          { return symbol(ChocoPyTokens.NOT); }
+  "."                            { return symbol(ChocoPyTokens.DOT); }
+  "("                            { return symbol(ChocoPyTokens.LPAR); }
+  ")"                            { return symbol(ChocoPyTokens.RPAR); }
+  "["                            { return symbol(ChocoPyTokens.LBR); }
+  "]"                            { return symbol(ChocoPyTokens.RBR); }
+  "->"                           { return symbol(ChocoPyTokens.ARROW); }
+  "is"                           { return symbol(ChocoPyTokens.IS); }
+  
+ 
+  /*Identifiers*/
+  {Identifiers}                  { return symbol(ChocoPyTokens.ID, yytext()); }
+  
   /* Whitespace. */
-  {WhiteSpace}                { /* ignore */ }
+  {WhiteSpace}                   { /* ignore */ }
+  
+  /* Comment. */
+  {Comments}                     { /* ignore */ }
 }
-
-<<EOF>>                       {
-    while (!indentStack.isEmpty()) {
-        indentStack.pop();
-        pendingTokens.add(symbol(ChocoPyTokens.OUTDENT));
-    }
-    return check_pendings(symbol(ChocoPyTokens.EOF));
+<STR>{
+    {StringLiteral}              { currString += yytext(); }
+    
+    \\$                          { /*'\' at the end of line, do nothing.*/ }
+    
+    "\""                         { yybegin(AFTER); return symbolFactory.newSymbol(ChocoPyTokens.terminalNames[ChocoPyTokens.STRING], ChocoPyTokens.STRING,
+                                   new ComplexSymbolFactory.Location(str_l, str_c),
+                                   new ComplexSymbolFactory.Location(yyline + 1,yycolumn + yylength()),
+                                   currString); } // accepted a ", return to AFTER state
 }
+<<EOF>>                          { if(!stack.isEmpty()){ return symbol(ChocoPyTokens.DEDENT, pop());} return symbol(ChocoPyTokens.EOF); }
 
 /* Error fallback. */
-[^]                           { return check_pendings(symbol(ChocoPyTokens.UNRECOGNIZED)); }
+[^]                              { return symbol(ChocoPyTokens.UNRECOGNIZED); }
