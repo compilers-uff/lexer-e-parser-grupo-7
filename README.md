@@ -69,8 +69,8 @@ A emissão dos tokens `INDENT`, `DEDENT` e `NEWLINE` não ocorrem em lihas vazia
 
 ### Qual foi a característica mais difícil da linguagem (não incluindo identação) neste projeto? Por que foi um desafio? Mencione o nome do arquivo e o(s) número(s) da(s) linha(s) para a parte principal de a sua solução.
 
-A parte mais difícil da linguagem neste projeto foi a implementação de definição de função (`fun_def` nas linhas 182-184), especialmente devido à necessidade de lidar com tipos de retorno opcionais (`ret_type`) e a construção do corpo da função (`fun_body_decs`).
+A parte mais difícil da linguagem neste projeto foi a implementação de definição de função (`fun_def` nas linhas 274-277), especialmente devido à necessidade de lidar com tipos de retorno opcionais (`ret_type`) e a construção do corpo da função (`fun_body_decs`).
 
-A regra ``ret_type`` (linhas 185-187) pode ser explícita ou implícita. Isso exigiu uma verificação especial no código de ação para substituir um tipo inválido por ``ClassType("<None>")`` (linha 183).
+A regra ``ret_type`` (linhas 286-288) pode ser explícita ou implícita. Isso exigiu uma verificação especial no código de ação para substituir um tipo inválido por ``ClassType("<None>")``.
 
 A função precisa capturar declarações locais (``fun_body_decs``: globais, não-locais, variáveis, ou outras funções) e statements (``list_stmt``), todos dentro de um bloco indentado (``INDENT/DEDENT``). Além disso, o FuncDef deve rastrear tanto o início quanto o fim da função no código-fonte
