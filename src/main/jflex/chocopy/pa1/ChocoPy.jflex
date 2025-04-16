@@ -132,58 +132,58 @@ Comments = #[^\r\n]*
 <AFTER> {
 
   /* Delimiters. */
-  {LineBreak}                    { yybegin(YYINITIAL); currIndent = 0;indentErrorUnchecked = true; return symbol(ChocoPyTokens.NEWLINE);}
-  ":"                            { return symbol(ChocoPyTokens.COLON); }
-  ","                            { return symbol(ChocoPyTokens.COMMA); }
+  {LineBreak} { yybegin(YYINITIAL); currIndent = 0;indentErrorUnchecked = true; return symbol(ChocoPyTokens.NEWLINE);}
+  ":" { return symbol(ChocoPyTokens.COLON); }
+  "," { return symbol(ChocoPyTokens.COMMA); }
 
   /* Literals. */
-  {IntegerLiteral}               { return symbol(ChocoPyTokens.NUMBER,
+  {IntegerLiteral} { return symbol(ChocoPyTokens.NUMBER,
                                                  Integer.parseInt(yytext())); }
 
-  "\""                           { yybegin(STR); str_l = yyline + 1; str_c = yycolumn + 1; currString = ""; } //Start taking a string when see a "
-  "False"                        { return symbol(ChocoPyTokens.BOOL, false); }
-  "True"                         { return symbol(ChocoPyTokens.BOOL, true); }
-  "None"                         { return symbol(ChocoPyTokens.NONE); }
+  "\"" { yybegin(STR); str_l = yyline + 1; str_c = yycolumn + 1; currString = ""; } //Start taking a string when see a "
+  "False" { return symbol(ChocoPyTokens.BOOL, false); }
+  "True" { return symbol(ChocoPyTokens.BOOL, true); }
+  "None" { return symbol(ChocoPyTokens.NONE); }
 
   /*Keywords*/
-  "if"                           { return symbol(ChocoPyTokens.IF); }
-  "else"                         { return symbol(ChocoPyTokens.ELSE); }
-  "elif"                         { return symbol(ChocoPyTokens.ELIF); }
-  "while"                        { return symbol(ChocoPyTokens.WHILE); }
-  "class"                        { return symbol(ChocoPyTokens.CLASS); }
-  "def"                          { return symbol(ChocoPyTokens.DEF); }
-  "for"                          { return symbol(ChocoPyTokens.FOR); }
-  "global"                       { return symbol(ChocoPyTokens.GLOBAL); }
-  "in"                           { return symbol(ChocoPyTokens.IN); }
-  "nonlocal"                     { return symbol(ChocoPyTokens.NONLOCAL); }
-  "pass"                         { return symbol(ChocoPyTokens.PASS); }
-  "return"                       { return symbol(ChocoPyTokens.RETURN); }
+  "if" { return symbol(ChocoPyTokens.IF); }
+  "else" { return symbol(ChocoPyTokens.ELSE); }
+  "elif" { return symbol(ChocoPyTokens.ELIF); }
+  "while" { return symbol(ChocoPyTokens.WHILE); }
+  "class" { return symbol(ChocoPyTokens.CLASS); }
+  "def" { return symbol(ChocoPyTokens.DEF); }
+  "for" { return symbol(ChocoPyTokens.FOR); }
+  "global" { return symbol(ChocoPyTokens.GLOBAL); }
+  "in" { return symbol(ChocoPyTokens.IN); }
+  "nonlocal" { return symbol(ChocoPyTokens.NONLOCAL); }
+  "pass" { return symbol(ChocoPyTokens.PASS); }
+  "return" { return symbol(ChocoPyTokens.RETURN); }
 
 
   /* Operators. */
-  "+"                            { return symbol(ChocoPyTokens.PLUS); }
-  "-"                            { return symbol(ChocoPyTokens.MINUS); }
-  "*"                            { return symbol(ChocoPyTokens.MUL); }
-  "//"                           { return symbol(ChocoPyTokens.DIV); }  
-  "/"                            { return symbol(ChocoPyTokens.DIV); }  //Accroding to manual, chocopy don't have fp division, '/', '//' should be integr division
-  "%"                            { return symbol(ChocoPyTokens.MOD); }  
-  ">"                            { return symbol(ChocoPyTokens.GT); }
-  "<"                            { return symbol(ChocoPyTokens.LT); }
-  "=="                           { return symbol(ChocoPyTokens.EQUAL); }
-  "!="                           { return symbol(ChocoPyTokens.NEQ); }
-  ">="                           { return symbol(ChocoPyTokens.GEQ); }
-  "<="                           { return symbol(ChocoPyTokens.LEQ); }
-  "="                            { return symbol(ChocoPyTokens.ASSIGN); }
-  "and"                          { return symbol(ChocoPyTokens.AND); }
-  "or"                           { return symbol(ChocoPyTokens.OR); }
-  "not"                          { return symbol(ChocoPyTokens.NOT); }
-  "."                            { return symbol(ChocoPyTokens.DOT); }
-  "("                            { return symbol(ChocoPyTokens.LPAR); }
-  ")"                            { return symbol(ChocoPyTokens.RPAR); }
-  "["                            { return symbol(ChocoPyTokens.LBR); }
-  "]"                            { return symbol(ChocoPyTokens.RBR); }
-  "->"                           { return symbol(ChocoPyTokens.ARROW); }
-  "is"                           { return symbol(ChocoPyTokens.IS); }
+  "+" { return symbol(ChocoPyTokens.PLUS); }
+  "-" { return symbol(ChocoPyTokens.MINUS); }
+  "*" { return symbol(ChocoPyTokens.MUL); }
+  "//" { return symbol(ChocoPyTokens.DIV); }  
+  "/" { return symbol(ChocoPyTokens.DIV); }  //Accroding to manual, chocopy don't have fp division, '/', '//' should be integr division
+  "%" { return symbol(ChocoPyTokens.MOD); }  
+  ">" { return symbol(ChocoPyTokens.GT); }
+  "<" { return symbol(ChocoPyTokens.LT); }
+  "==" { return symbol(ChocoPyTokens.EQUAL); }
+  "!=" { return symbol(ChocoPyTokens.NEQ); }
+  ">=" { return symbol(ChocoPyTokens.GEQ); }
+  "<=" { return symbol(ChocoPyTokens.LEQ); }
+  "=" { return symbol(ChocoPyTokens.ASSIGN); }
+  "and" { return symbol(ChocoPyTokens.AND); }
+  "or" { return symbol(ChocoPyTokens.OR); }
+  "not" { return symbol(ChocoPyTokens.NOT); }
+  "." { return symbol(ChocoPyTokens.DOT); }
+  "(" { return symbol(ChocoPyTokens.LPAR); }
+  ")" { return symbol(ChocoPyTokens.RPAR); }
+  "[" { return symbol(ChocoPyTokens.LBR); }
+  "]" { return symbol(ChocoPyTokens.RBR); }
+  "->" { return symbol(ChocoPyTokens.ARROW); }
+  "is" { return symbol(ChocoPyTokens.IS); }
   
  
   /*Identifiers*/
