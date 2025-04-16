@@ -189,8 +189,6 @@ terminal String LEQ; terminal String ASSIGN; terminal String AND; terminal Strin
 terminal String DOT; terminal String LPAR; terminal String RPAR; terminal String LBR; terminal String RBR;
 terminal String ARROW; terminal String IS; terminal String UMINUS;
 
-terminal LAMBDA, AS, ASSERT, AWAIT, BREAK, CONTINUE, DEL, EXCEPT, FINALLY, FROM, IMPORT, RAISE, TRY, WITH, YIELD;
-
 /* Returned by the lexer for erroneous tokens.  Since it does not appear in
  * the grammar, it indicates a syntax error. */
 terminal String UNRECOGNIZED;   
