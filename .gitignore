@@ -147,3 +147,6 @@ tramp
 Session.vim
 .netrwhist
 *~
+
+# Personal ignores
+src/test/data/pa1/sample/*.generated
